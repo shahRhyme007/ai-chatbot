@@ -1,3 +1,4 @@
+// pages/index.tsx
 import React from 'react';
 import Chatbot from '../components/chatbot';
 

@@ -2,7 +2,7 @@ import { NextApiRequest, NextApiResponse } from 'next';
 import OpenAI from 'openai';
 
 const openai = new OpenAI({
-    apiKey: '' // Use environment variable for API key
+    apiKey: 'YOUR_OPENAI_API_KEY',
 });
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
