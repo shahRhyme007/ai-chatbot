@@ -1,8 +1,9 @@
+// chat.ts
 import { NextApiRequest, NextApiResponse } from 'next';
 import OpenAI from 'openai';
 
 const openai = new OpenAI({
-    apiKey: 'YOUR_OPENAI_API_KEY',
+    apiKey: 'OPENAI_API_KEY',
 });
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -12,19 +13,34 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return;
     }
 
-    const { message } = req.body;
+    const { message, image } = req.body;
 
-    if (!message) {
-        res.status(400).json({ error: 'Message is required' });
+    if (!message && !image) {
+        res.status(400).json({ error: 'Message or image is required' });
         return;
     }
 
     try {
+        let messages: OpenAI.Chat.ChatCompletionMessageParam[];
+        
+        if (image) {
+            messages = [
+                {
+                    role: "user",
+                    content: [
+                        { type: "text", text: message || "Analyze this image" },
+                        { type: "image_url", image_url: { url: image } }
+                    ],
+                },
+            ];
+        } else {
+            messages = [{ role: "user", content: message }];
+        }
+
         const completion = await openai.chat.completions.create({
-            model: "gpt-3.5-turbo",
-            messages: [{ role: "user", content: message }],
-            max_tokens: 150,
-            temperature: 0.7,
+            model: "gpt-4-turbo",
+            messages: messages,
+            max_tokens: 300,
         });
 
         const responseContent = completion.choices[0]?.message?.content;

@@ -1,58 +1,69 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import axios from 'axios';
 import Image from 'next/image';
 
 interface Message {
   type: 'user' | 'ai';
   text?: string;
-  imageUrls?: string[];
+  imageUrl?: string;
 }
 
 const Chatbot: React.FC = () => {
   const [message, setMessage] = useState<string>('');
   const [responses, setResponses] = useState<Message[]>([]);
   const [isTyping, setIsTyping] = useState<boolean>(false);
-  const [imagePreviews, setImagePreviews] = useState<string[]>([]);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    const newMessage: Message = { type: 'user' };
-    if (message.trim()) newMessage.text = message;
-    if (imagePreviews.length) newMessage.imageUrls = imagePreviews;
+    if (!message && !imagePreview) {
+      alert("Please enter a message or upload an image.");
+      return;
+    }
 
+    const newMessage: Message = { type: 'user', text: message, imageUrl: imagePreview || undefined };
     setResponses(responses => [...responses, newMessage]);
     setMessage('');
-    setImagePreviews([]);
     setIsTyping(true);
 
     try {
-      const result = await axios.post('/api/chat', { message });
-      setTimeout(() => {
-        setIsTyping(false);
-        setResponses(currentResponses => [...currentResponses, { type: 'ai', text: result.data.completion }]);
-      }, 2000);
+      const result = await axios.post('/api/chat', { 
+        message, 
+        image: imagePreview 
+      });
+      setResponses(currentResponses => [
+        ...currentResponses, 
+        { type: 'ai', text: result.data.completion }
+      ]);
     } catch (error) {
       console.error('Error:', error);
+      setResponses(currentResponses => [
+        ...currentResponses, 
+        { type: 'ai', text: 'An error occurred. Please try again.' }
+      ]);
+    } finally {
       setIsTyping(false);
-      setResponses(currentResponses => [...currentResponses, { type: 'ai', text: 'An error occurred. Please try again.' }]);
+      clearImagePreview();
     }
   };
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files) return;
-
-    Array.from(files).forEach(file => {
+    const file = e.target.files?.[0];
+    if (file) {
       const reader = new FileReader();
       reader.onload = (readEvent) => {
-        setImagePreviews(prev => [...prev, readEvent.target?.result as string]);
+        setImagePreview(readEvent.target?.result as string);
       };
       reader.readAsDataURL(file);
-    });
+    }
   };
 
-  const handleImageRemove = (index: number) => {
-    setImagePreviews(prev => prev.filter((_, i) => i !== index));
+  const clearImagePreview = () => {
+    setImagePreview(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';  // Explicitly clear the file input
+    }
   };
 
   return (
@@ -63,9 +74,9 @@ const Chatbot: React.FC = () => {
           <div key={index} className={`message-row ${res.type}`}>
             <div className={`message ${res.type}`}>
               {res.text}
-              {res.imageUrls?.map((url, idx) => (
-                <Image key={idx} src={url} alt="Uploaded" width={100} height={100} className="image-preview" />
-              ))}
+              {res.imageUrl && (
+                <Image src={res.imageUrl} alt="Uploaded" width={100} height={100} className="image-preview" />
+              )}
             </div>
           </div>
         ))}
@@ -80,17 +91,23 @@ const Chatbot: React.FC = () => {
         )}
       </div>
       <form onSubmit={handleSubmit} className="input-container">
-        <div className="image-preview-container">
-          {imagePreviews.map((src, index) => (
-            <div key={index} className="image-preview-wrapper">
-              <Image src={src} alt="Preview" width={100} height={100} className="image-preview" />
-              <button type="button" onClick={() => handleImageRemove(index)} className="delete-image"></button>
+        {imagePreview && (
+          <div className="image-preview-container">
+            <div className="image-preview-wrapper">
+              <Image src={imagePreview} alt="Preview" width={100} height={100} className="image-preview" />
+              <button type="button" onClick={clearImagePreview} className="delete-image">X</button>
             </div>
-          ))}
-        </div>
+          </div>
+        )}
         <label className="upload-button">
-          <input type="file" accept="image/*" onChange={handleImageChange} multiple style={{ display: 'none' }} />
-          <span style={{ display: 'flex', background: 'url(upload-icon.png) no-repeat center center', backgroundSize: 'cover', width: '40px', height: '40px' }}></span>
+          <input
+            type="file"
+            accept="image/*"
+            onChange={handleImageChange}
+            ref={fileInputRef}
+            style={{ display: 'none' }}
+          />
+          <span>📷</span>
         </label>
         <input
           type="text"
@@ -98,7 +115,6 @@ const Chatbot: React.FC = () => {
           value={message}
           onChange={(e) => setMessage(e.target.value)}
           placeholder="Type your message here..."
-          required
         />
         <button type="submit" className="send-button"></button>
       </form>
