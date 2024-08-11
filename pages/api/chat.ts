@@ -6,6 +6,12 @@ const openai = new OpenAI({
     apiKey: 'OPENAI_API_KEY',
 });
 
+const SYSTEM_MESSAGE = `You are a customer service chatbot for Royal Kitchen, a restaurant. 
+Your primary goal is to assist customers with their inquiries about our food, services, and general information. 
+If a customer asks for our email address, provide them with: royal.kitchen@gmail.com. 
+If an image is uploaded, analyze it and determine if it's related to our restaurant's food. 
+If it's not food-related or not from our restaurant, politely inform the customer.`;
+
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
     if (req.method !== 'POST') {
         res.setHeader('Allow', ['POST']);
@@ -21,20 +27,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     try {
-        let messages: OpenAI.Chat.ChatCompletionMessageParam[];
+        let messages: OpenAI.Chat.ChatCompletionMessageParam[] = [
+            { role: "system", content: SYSTEM_MESSAGE },
+        ];
         
         if (image) {
-            messages = [
-                {
-                    role: "user",
-                    content: [
-                        { type: "text", text: message || "Analyze this image" },
-                        { type: "image_url", image_url: { url: image } }
-                    ],
-                },
-            ];
+            messages.push({
+                role: "user",
+                content: [
+                    { type: "text", text: message || "Analyze this image" },
+                    { type: "image_url", image_url: { url: image } }
+                ],
+            });
         } else {
-            messages = [{ role: "user", content: message }];
+            messages.push({ role: "user", content: message });
         }
 
         const completion = await openai.chat.completions.create({

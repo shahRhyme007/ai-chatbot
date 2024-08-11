@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import axios from 'axios';
 import Image from 'next/image';
 
@@ -14,6 +14,26 @@ const Chatbot: React.FC = () => {
   const [isTyping, setIsTyping] = useState<boolean>(false);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    // Send initial greeting when the component mounts
+    sendInitialGreeting();
+  }, []);
+
+  const sendInitialGreeting = async () => {
+    setIsTyping(true);
+    try {
+      const result = await axios.post('/api/chat', { 
+        message: "Send a greeting as Royal Kitchen's customer service bot" 
+      });
+      setResponses([{ type: 'ai', text: result.data.completion }]);
+    } catch (error) {
+      console.error('Error:', error);
+      setResponses([{ type: 'ai', text: 'Welcome to Royal Kitchen! How can I assist you today?' }]);
+    } finally {
+      setIsTyping(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -68,7 +88,7 @@ const Chatbot: React.FC = () => {
 
   return (
     <div className="chatbot-container">
-      <h1>AI Chatbot</h1>
+      <h1>Royal Kitchen Customer Service</h1>
       <div className="message-area">
         {responses.map((res, index) => (
           <div key={index} className={`message-row ${res.type}`}>
@@ -95,7 +115,7 @@ const Chatbot: React.FC = () => {
           <div className="image-preview-container">
             <div className="image-preview-wrapper">
               <Image src={imagePreview} alt="Preview" width={100} height={100} className="image-preview" />
-              <button type="button" onClick={clearImagePreview} className="delete-image">X</button>
+              <button type="button" onClick={clearImagePreview} className="delete-image"></button>
             </div>
           </div>
         )}
